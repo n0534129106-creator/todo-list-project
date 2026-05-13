@@ -57,6 +57,13 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+
+// הוספת הקוד ליצירת הטבלאות באופן אוטומטי
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ToDoDbContext>();
+    db.Database.EnsureCreated(); // פקודה זו בודקת אם הטבלאות קיימות, ואם לא - יוצרת אותן
+}
 // --- סדר ה-MIDDLEWARE (החלק הכי חשוב!) ---
 
 // א. סווגר תמיד פעיל (גם ב-Production)
