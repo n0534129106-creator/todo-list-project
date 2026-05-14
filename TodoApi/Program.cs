@@ -15,21 +15,31 @@ var database = Environment.GetEnvironmentVariable("DB_NAME");
 var user = Environment.GetEnvironmentVariable("DB_USER");
 var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-string connectionString;
+
 
 // בדיקה האם אנחנו ב-Production (Render) או ב-Local
+string connectionString;
+
 if (!string.IsNullOrEmpty(host))
 {
-    // שימוש ב-User במקום User Id כדי למנוע את השגיאה Option 'name' not supported
-    connectionString = $"Server={host};Port={port};Database={database};User={user};Password={password};SSL Mode=Required;";
+    // שימוש ב-Builder כדי לא לסמוך על parsing של string
+    var csb = new MySqlConnector.MySqlConnectionStringBuilder
+    {
+        Server = host,
+        Port = uint.Parse(port),
+        Database = database,
+        UserID = user,
+        Password = password
+    };
+    connectionString = csb.ConnectionString;
     Console.WriteLine("Environment: Production (Render)");
+    Console.WriteLine($"Connecting to: {host}");
 }
 else
 {
     connectionString = builder.Configuration.GetConnectionString("ToDoDB") ?? "";
     Console.WriteLine("Environment: Local");
 }
-
 // 2. הגדרת מסד הנתונים
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36)); 
 
