@@ -9,7 +9,7 @@ using System.Security.Claims;
 var builder = WebApplication.CreateBuilder(args);
 // ניסיון לקרוא מהגדרות השרת (Render), ואם לא קיים - מהגדרות מקומיות
 var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__ToDoDB") 
-                        ?? builder.Configuration.GetConnectionString("DefaultConnection");
+                        ?? builder.Configuration.GetConnectionString("ToDoDB")
 
 
 // 1. שירותים בסיסיים
