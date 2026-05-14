@@ -8,10 +8,15 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 // ניסיון לקרוא מהגדרות השרת (Render), ואם לא קיים - מהגדרות מקומיות
-var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__ToDoDB") 
-                        ?? builder.Configuration.GetConnectionString("ToDoDB")
+var host = Environment.GetEnvironmentVariable("DB_HOST");
+var port = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
+var database = Environment.GetEnvironmentVariable("DB_NAME");
+var user = Environment.GetEnvironmentVariable("DB_USER");
+var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-
+var connectionString = string.IsNullOrEmpty(host)
+    ? builder.Configuration.GetConnectionString("ToDoDB")
+    : $"Server={host};Port={port};Database={database};User Id={user};Password={password};";
 // 1. שירותים בסיסיים
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
