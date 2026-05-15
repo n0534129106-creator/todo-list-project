@@ -18,19 +18,9 @@ string connectionString;
 
 if (!string.IsNullOrEmpty(host))
 {
-    // בנייה ידנית וישירה של המחרוזת כדי למנוע הזרקה של "name=" או תווים לא נתמכים
-    connectionString = $"Server={host};Port={port};Database={database};Uid={user};Pwd={password};Charset=utf8;SslMode=Required;AllowUserVariables=true;";
-    
+    connectionString = $"server={host};port={port};database={database};user={user};password={password};SslMode=Required;";
     Console.WriteLine("Environment: Production (Render)");
-    // הדפסה לבדיקה (ללא סיסמה)
-    Console.WriteLine($"Host: {host}, Database: {database}, User: {user}");
 }
-else
-{
-    connectionString = builder.Configuration.GetConnectionString("ToDoDB") ?? "";
-    Console.WriteLine("Environment: Local");
-}
-
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 builder.Services.AddDbContext<ToDoDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
