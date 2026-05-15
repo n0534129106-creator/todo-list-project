@@ -18,16 +18,12 @@ string connectionString;
 
 if (!string.IsNullOrEmpty(host))
 {
-    var csb = new MySqlConnector.MySqlConnectionStringBuilder
-    {
-        Server = host,
-        Port = uint.Parse(port),
-        Database = database,
-        UserID = user,
-        Password = password
-    };
-    connectionString = csb.ConnectionString;
+    // בנייה ידנית וישירה של המחרוזת כדי למנוע הזרקה של "name=" או תווים לא נתמכים
+    connectionString = $"Server={host};Port={port};Database={database};Uid={user};Pwd={password};Charset=utf8;SslMode=Required;AllowUserVariables=true;";
+    
     Console.WriteLine("Environment: Production (Render)");
+    // הדפסה לבדיקה (ללא סיסמה)
+    Console.WriteLine($"Host: {host}, Database: {database}, User: {user}");
 }
 else
 {
