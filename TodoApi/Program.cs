@@ -19,7 +19,7 @@ string connectionString;
 if (!string.IsNullOrEmpty(host))
 {
     connectionString = $"server={host};port={port};database={database};user={user};password={password};SslMode=Required;";
-    Console.WriteLine("Environment: Production (Render)");
+Console.WriteLine("--- ATTENTION: DEPLOYING VERSION 2.0 WITHOUT NAME OPTION ---");
 }
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 // זה מבטל כל הגדרה אוטומטית ומשתמש רק במה שאנחנו בונים ידנית
