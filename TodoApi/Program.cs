@@ -22,8 +22,12 @@ if (!string.IsNullOrEmpty(host))
     Console.WriteLine("Environment: Production (Render)");
 }
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+// זה מבטל כל הגדרה אוטומטית ומשתמש רק במה שאנחנו בונים ידנית
 builder.Services.AddDbContext<ToDoDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
+{
+    var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
+    options.UseMySql(connectionString, serverVersion);
+}, ServiceLifetime.Scoped); // הוספת Scope מוודאת שה-Context נוצר מחדש בכל בקשה
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

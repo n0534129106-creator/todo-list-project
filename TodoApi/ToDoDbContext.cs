@@ -18,8 +18,7 @@
 
         public virtual DbSet<Item> Items { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-          {}
+       
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
