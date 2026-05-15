@@ -8,21 +8,16 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. שליפת משתני סביבה בצורה בטוחה
 var host = Environment.GetEnvironmentVariable("DB_HOST");
 var port = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
 var database = Environment.GetEnvironmentVariable("DB_NAME");
 var user = Environment.GetEnvironmentVariable("DB_USER");
 var password = Environment.GetEnvironmentVariable("DB_PASSWORD");
 
-
-
-// בדיקה האם אנחנו ב-Production (Render) או ב-Local
 string connectionString;
 
 if (!string.IsNullOrEmpty(host))
 {
-    // שימוש ב-Builder כדי לא לסמוך על parsing של string
     var csb = new MySqlConnector.MySqlConnectionStringBuilder
     {
         Server = host,
@@ -33,41 +28,25 @@ if (!string.IsNullOrEmpty(host))
     };
     connectionString = csb.ConnectionString;
     Console.WriteLine("Environment: Production (Render)");
-    Console.WriteLine($"Connecting to: {host}");
 }
 else
 {
     connectionString = builder.Configuration.GetConnectionString("ToDoDB") ?? "";
     Console.WriteLine("Environment: Local");
 }
-// 2. הגדרת מסד הנתונים
-var serverVersion = new MySqlServerVersion(new Version(8, 0, 36)); 
 
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 builder.Services.AddDbContext<ToDoDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion, mysqlOptions => 
-    {
-        // הוספת Retries למקרה של חיבור איטי ב-Cloud
-        mysqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-    }));
+    options.UseMySql(connectionString, serverVersion));
 
-// 3. שירותים בסיסיים ו-CORS
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddCors(options =>
-{
     options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-    });
-});
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// 4. הגדרת JWT
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? "ThisIsMyVerySecretKeyForJwt1234567890";
-var key = Encoding.ASCII.GetBytes(jwtKey);
+var key = Encoding.ASCII.GetBytes("ThisIsMyVerySecretKeyForJwt1234567890");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -85,8 +64,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// 5. יצירת טבלאות אוטומטית (עם טיפול בשגיאות)
-try 
+try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ToDoDbContext>();
@@ -97,35 +75,70 @@ catch (Exception ex)
     Console.WriteLine($"Database initialization failed: {ex.Message}");
 }
 
-// 6. Middleware
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- Routes ---
-
 app.MapGet("/", () => "Server is running!");
+
+app.MapGet("/items", async (ToDoDbContext db) =>
+    await db.Items.ToListAsync());
+
+app.MapPost("/items", async (ToDoDbContext db, Item item) =>
+{
+    db.Items.Add(item);
+    await db.SaveChangesAsync();
+    return Results.Created($"/items/{item.Id}", item);
+}).RequireAuthorization();
+
+app.MapPut("/items/{id}", async (ToDoDbContext db, int id, Item inputItem) =>
+{
+    var item = await db.Items.FindAsync(id);
+    if (item is null) return Results.NotFound();
+    item.Name = inputItem.Name;
+    item.IsComplete = inputItem.IsComplete;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+}).RequireAuthorization();
+
+app.MapDelete("/items/{id}", async (ToDoDbContext db, int id) =>
+{
+    if (await db.Items.FindAsync(id) is Item item)
+    {
+        db.Items.Remove(item);
+        await db.SaveChangesAsync();
+        return Results.Ok(item);
+    }
+    return Results.NotFound();
+}).RequireAuthorization();
+
+app.MapPost("/login", (User user, ToDoDbContext db) =>
+{
+    var dbUser = db.Users.FirstOrDefault(u => u.Username == user.Username && u.Password == user.Password);
+    if (dbUser == null) return Results.Unauthorized();
+
+    var tokenHandler = new JwtSecurityTokenHandler();
+    var tokenDescriptor = new SecurityTokenDescriptor
+    {
+        Subject = new ClaimsIdentity(new[] { new Claim("id", dbUser.Id.ToString()) }),
+        Expires = DateTime.UtcNow.AddDays(7),
+        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+    };
+    var token = tokenHandler.CreateToken(tokenDescriptor);
+    return Results.Ok(new { token = tokenHandler.WriteToken(token) });
+});
 
 app.MapPost("/register", async (ToDoDbContext db, User user) =>
 {
-    try 
-    {
-        var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
-        if (existingUser != null)
-            return Results.BadRequest("משתמש זה כבר קיים במערכת");
+    var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
+    if (existingUser != null)
+        return Results.BadRequest("משתמש זה כבר קיים במערכת");
 
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-        return Results.Ok(new { message = "User registered successfully" });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem($"Database Error: {ex.Message}");
-    }
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "User registered successfully" });
 });
-
-// שאר ה-Routes שלך (login, items וכו') יבואו כאן...
 
 app.Run();
